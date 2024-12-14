@@ -14,15 +14,19 @@ def parse_rules(rules):
     return rules_matrix
 
 
-def main(inp):
+def check_update(update, rules_mat):
+    update_matrix = np.zeros_like(rules_mat)
+    for i in range(len(update) - 1):
+        update_matrix[update[i], update[i + 1 :]] += 1
+    return rules_mat * update_matrix
+
+
+def main(inp, sum=0):
     rules_mat, updates = parse_rules(inp[0]), inp[1]
-    sum = 0
     for update in updates:
-        update_matrix = np.zeros_like(rules_mat)
-        _update = [int(x) for x in update.split(",")]
-        for i in range(len(_update) - 1):
-            update_matrix[_update[i], _update[i + 1 :]] += 1
-        if np.sum(rules_mat * update_matrix) == 0:
+        _update = np.array([int(x) for x in update.split(",")])
+        fault = check_update(_update, rules_mat)
+        if np.sum(fault) == 0:
             sum += _update[len(_update) // 2]
     return sum
 
