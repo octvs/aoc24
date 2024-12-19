@@ -2,53 +2,52 @@ import sys
 
 import numpy as np
 
-DIRS = tuple(np.array(x) for x in [[-1, 0], [0, 1], [1, 0], [0, -1]])
-
 
 def parse_input(inp):
-    # Assume the guard always starts facing north
-    _map = {".": 0, "#": 2, "^": 3}
-    return np.array([[_map[ch] for ch in line] for line in inp.splitlines()])
+    _map = {".": 0, "#": 1, "^": 2}
+    _inp = np.array([[_map[ch] for ch in li] for li in inp.splitlines()])
+    _obj = np.array(np.where(_inp == 1)) - np.array(np.where(_inp == 2))
+    _obj[0] *= -1  # rotate x axis to be pos up
+    return _obj.T
 
 
-def mark_path(inp, a, b):
-    diff = np.array(b) - np.array(a)
-    move_axis = np.nonzero(diff)[0][0]
-    dir = int(diff[move_axis] / abs(diff[move_axis]))
-    _idx = list(a)
-    _idx[move_axis] = slice(a[move_axis], b[move_axis], dir)
-    inp[tuple(_idx)] = 1
-    return inp
+def objects_ahead(objects):
+    return objects[(objects[:, 1] == 0) & (objects[:, 0] > 0)]
 
 
-def move(inp, loc, direction):
-    print(inp)
-    print(type(loc))
-    [axis], [dir] = np.where(direction != 0)[0], direction[direction != 0]
-    path = inp.take(loc[1 - axis], 1 - axis)[loc[axis] + dir :: dir]
-    blocks_ahead = list(*np.where(path == 2))
-    if not blocks_ahead:
-        print("Gonna leave")
-        new_loc = list(loc)
-        _val = int((inp.shape[axis] - 1) * (1 + dir) / 2)  # 0 if dir==-1
-        new_loc[axis] = _val
-        new_loc = tuple(new_loc)
-        inp = mark_path(inp, loc, new_loc)
-        inp[new_loc] = 1
-        return inp
-    new_loc = tuple(loc + direction * blocks_ahead[0])
-    inp = mark_path(inp, loc, new_loc)
-    inp[new_loc] = 3
-    return inp
+def turn_to_right(objects):
+    objects[:, 0] *= -1
+    return objects[:, [1, 0]]
+
+
+def move_till(objects, dst, moves):
+    objects[:, 0] -= dst - 1
+    moves.append(dst - 1)
+    return objects, moves
+
+
+def move_forward(objs, moves=[]):
+    objs, moves = move_till(objs, np.min(objects_ahead(objs)[:, 0]), moves)
+    objs = turn_to_right(objs)
+    if np.any(objects_ahead(objs)):
+        objs, moves = move_forward(objs, moves)
+    else:
+        objs, moves = move_till(objs, np.max(objs[:, 0]) + 1, moves)
+    return objs, moves
+
+
+def check_unique_locs(moves):
+    dir = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]])
+    traj = [[0, 0]]
+    for i, step in enumerate(moves):
+        for st in range(step):
+            traj.append(traj[-1] + dir[i % 4])
+    return np.unique(traj, axis=0).shape[0]
 
 
 def main(inp):
-    dir = 0
-    while loc := list(zip(*np.where(inp == 3))):
-        inp = move(inp, loc[0], DIRS[dir % 4])
-        dir += 1
-    print(inp)
-    return np.sum(inp == 1)
+    _, moves = move_forward(inp)
+    return check_unique_locs(moves)
 
 
 if __name__ == "__main__":
